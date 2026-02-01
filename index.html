@@ -23,13 +23,12 @@ header {
 }
 
 .stats {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
 }
 
 .stat-box {
-    flex: 1;
     background: #102a3a;
     padding: 16px;
     border-radius: 14px;
@@ -132,6 +131,14 @@ button.danger {
             <h3>✅ Lavoro svolto</h3>
             <p id="workDone">0h 0m</p>
         </div>
+        <div class="stat-box">
+            <h3>📅 Giorni rimanenti</h3>
+            <input type="number" id="daysRemainingInput" value="0" min="0" onchange="updateDaysRemaining()" style="width:80px;">
+        </div>
+        <div class="stat-box">
+            <h3>🕒 Ore da fare oggi</h3>
+            <p id="hoursPerDay">0h</p>
+        </div>
     </div>
 </header>
 
@@ -217,7 +224,8 @@ function createProject() {
         name,
         timeRemaining: hours * 60,
         workDone: 0,
-        workLog: {}
+        workLog: {},
+        daysRemaining: 0
     });
 
     saveProjects();
@@ -245,7 +253,7 @@ function selectProjectFromDropdown() {
     if (i === '') {
         currentProjectIndex = null;
         updateDisplay();
-        document.getElementById('workLogItems').innerHTML = '';
+        renderWorkLog();
         renderEditDays();
         return;
     }
@@ -253,8 +261,10 @@ function selectProjectFromDropdown() {
     updateDisplay();
     renderWorkLog();
     renderEditDays();
+    updateHoursPerDay();
 }
 
+/* ===== CANCELLA ===== */
 function deleteCurrentProject() {
     if (currentProjectIndex === null) return;
     if (!confirm('Cancellare il progetto?')) return;
@@ -264,7 +274,7 @@ function deleteCurrentProject() {
     saveProjects();
     renderProjectDropdown();
     updateDisplay();
-    document.getElementById('workLogItems').innerHTML = '';
+    renderWorkLog();
     renderEditDays();
 }
 
@@ -296,6 +306,7 @@ function addWork() {
     updateDisplay();
     renderWorkLog();
     renderEditDays();
+    updateHoursPerDay();
 
     workHoursInput.value = '';
     workMinutesInput.value = '';
@@ -306,12 +317,40 @@ function updateDisplay() {
     if (currentProjectIndex === null) {
         timeRemaining.textContent = '0h 0m';
         workDone.textContent = '0h 0m';
+        hoursPerDay.textContent = '0h';
+        daysRemainingInput.value = 0;
         return;
     }
 
     const p = projects[currentProjectIndex];
     timeRemaining.textContent = formatMinutes(p.timeRemaining);
     workDone.textContent = formatMinutes(p.workDone);
+    daysRemainingInput.value = p.daysRemaining;
+    updateHoursPerDay();
+}
+
+/* ===== GIORNI RIMANENTI ===== */
+function updateDaysRemaining() {
+    if (currentProjectIndex === null) return;
+    const p = projects[currentProjectIndex];
+    p.daysRemaining = parseInt(daysRemainingInput.value) || 0;
+    saveProjects();
+    updateHoursPerDay();
+}
+
+/* ===== ORE DA FARE ===== */
+function updateHoursPerDay() {
+    if (currentProjectIndex === null) {
+        hoursPerDay.textContent = '0h';
+        return;
+    }
+    const p = projects[currentProjectIndex];
+    if (p.daysRemaining <= 0 || p.timeRemaining <= 0) {
+        hoursPerDay.textContent = 'Completato';
+        return;
+    }
+    const hoursPerDayCalc = p.timeRemaining / p.daysRemaining;
+    hoursPerDay.textContent = `${Math.ceil(hoursPerDayCalc/60)}h`;
 }
 
 /* ===== REGISTRO ===== */
@@ -384,14 +423,10 @@ function renderEditDays() {
             const newDate = inputDate.value;
             const newTotal = parseInt(inputTotal.value) || 0;
 
-            // aggiorna workDone
             const p = projects[currentProjectIndex];
             p.workDone = p.workDone - d.total + newTotal;
-
-            // aggiorna timeRemaining
             p.timeRemaining += d.total - newTotal;
 
-            // aggiorna workLog
             delete p.workLog[day];
             p.workLog[newDate] = { entries: [newTotal], total: newTotal };
 
@@ -421,7 +456,23 @@ function formatMinutes(min) {
 
 /* ===== START ===== */
 loadProjects();
-</script>
 
+/* ===== DECREMENTO GIORNI AUTOMATICO ===== */
+setInterval(() => {
+    if (currentProjectIndex !== null) {
+        const p = projects[currentProjectIndex];
+        const today = new Date().toDateString();
+        if (!p.lastDayCheck) p.lastDayCheck = today;
+
+        if (p.lastDayCheck !== today && p.daysRemaining > 0) {
+            p.daysRemaining = Math.max(0, p.daysRemaining - 1);
+            p.lastDayCheck = today;
+            saveProjects();
+            updateDisplay();
+        }
+    }
+}, 60000);
+
+</script>
 </body>
 </html>
