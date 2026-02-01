@@ -105,6 +105,18 @@ button.danger {
     font-size: 14px;
     opacity: 0.8;
 }
+
+.inline {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.inline input {
+    flex: 1;
+}
+.inline button {
+    flex: 0 0 auto;
+}
 </style>
 </head>
 
@@ -130,7 +142,6 @@ button.danger {
     <select id="projectSelect" onchange="selectProjectFromDropdown()">
         <option value="">Seleziona progetto</option>
     </select>
-    <button class="danger" onclick="deleteCurrentProject()">🗑 Cancella progetto</button>
 </div>
 
 <!-- AGGIUNGI LAVORO -->
@@ -149,13 +160,29 @@ button.danger {
     </div>
 </div>
 
-<!-- NUOVO PROGETTO (COLLAPSIBILE, IN FONDO) -->
+<!-- NUOVO/GESTIONE PROGETTO (COLLAPSIBILE, IN FONDO) -->
 <div class="section">
-    <button class="secondary" onclick="toggleNewProject()">➕ Gestione progetto</button>
+    <button class="secondary" onclick="toggleNewProject()">⚙️ Gestione progetto</button>
     <div id="newProjectSection" style="display:none; margin-top:12px;">
+
+        <!-- CREA NUOVO PROGETTO -->
+        <h3>Crea nuovo progetto</h3>
         <input id="projectName" placeholder="Nome progetto">
         <input id="totalHours" type="number" placeholder="Ore totali">
         <button onclick="createProject()">Crea nuovo progetto</button>
+
+        <hr style="margin:20px 0; border-color:#1e3a50;">
+
+        <!-- CANCELLA PROGETTO -->
+        <h3>Elimina progetto selezionato</h3>
+        <button class="danger" onclick="deleteCurrentProject()">Elimina progetto</button>
+
+        <hr style="margin:20px 0; border-color:#1e3a50;">
+
+        <!-- MODIFICA GIORNATE -->
+        <h3>Modifica giornate registrate</h3>
+        <div id="editDaysContainer"></div>
+
     </div>
 </div>
 
@@ -219,11 +246,13 @@ function selectProjectFromDropdown() {
         currentProjectIndex = null;
         updateDisplay();
         document.getElementById('workLogItems').innerHTML = '';
+        renderEditDays();
         return;
     }
     currentProjectIndex = parseInt(i);
     updateDisplay();
     renderWorkLog();
+    renderEditDays();
 }
 
 function deleteCurrentProject() {
@@ -236,6 +265,7 @@ function deleteCurrentProject() {
     renderProjectDropdown();
     updateDisplay();
     document.getElementById('workLogItems').innerHTML = '';
+    renderEditDays();
 }
 
 /* ===== LAVORO ===== */
@@ -265,6 +295,7 @@ function addWork() {
     saveProjects();
     updateDisplay();
     renderWorkLog();
+    renderEditDays();
 
     workHoursInput.value = '';
     workMinutesInput.value = '';
@@ -314,6 +345,65 @@ function renderWorkLog() {
             <strong>Totale: ${formatMinutes(d.total)}</strong>
         `;
 
+        container.appendChild(div);
+    });
+}
+
+/* ===== MODIFICA GIORNATE ===== */
+function renderEditDays() {
+    const container = document.getElementById('editDaysContainer');
+    container.innerHTML = '';
+
+    if (currentProjectIndex === null) return;
+
+    const log = projects[currentProjectIndex].workLog;
+    const days = Object.keys(log).sort().reverse();
+
+    if (!days.length) {
+        container.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
+        return;
+    }
+
+    days.forEach(day => {
+        const d = log[day];
+        const div = document.createElement('div');
+        div.className = 'project-item';
+
+        const inputDate = document.createElement('input');
+        inputDate.type = 'date';
+        inputDate.value = day;
+
+        const inputTotal = document.createElement('input');
+        inputTotal.type = 'number';
+        inputTotal.value = d.total;
+        inputTotal.placeholder = 'Minuti totali';
+
+        const btnUpdate = document.createElement('button');
+        btnUpdate.textContent = 'Aggiorna';
+        btnUpdate.onclick = () => {
+            const newDate = inputDate.value;
+            const newTotal = parseInt(inputTotal.value) || 0;
+
+            // aggiorna workDone
+            const p = projects[currentProjectIndex];
+            p.workDone = p.workDone - d.total + newTotal;
+
+            // aggiorna timeRemaining
+            p.timeRemaining += d.total - newTotal;
+
+            // aggiorna workLog
+            delete p.workLog[day];
+            p.workLog[newDate] = { entries: [newTotal], total: newTotal };
+
+            saveProjects();
+            updateDisplay();
+            renderWorkLog();
+            renderEditDays();
+        };
+
+        div.appendChild(inputDate);
+        div.appendChild(inputTotal);
+        div.appendChild(btnUpdate);
         container.appendChild(div);
     });
 }
