@@ -15,12 +15,39 @@ body {
     color: #fff;
 }
 
+/* ===== HEADER STATS ===== */
 header {
-    padding: 16px;
+    padding: 20px;
+    background: linear-gradient(180deg, #08151f, #0b1d2a);
     text-align: center;
-    background: #08151f;
 }
 
+.stats {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.stat-box {
+    flex: 1;
+    background: #102a3a;
+    padding: 16px;
+    border-radius: 14px;
+}
+
+.stat-box h3 {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.stat-box p {
+    margin: 6px 0 0;
+    font-size: 22px;
+    font-weight: bold;
+}
+
+/* ===== MAIN ===== */
 main {
     padding: 16px;
     max-width: 600px;
@@ -28,16 +55,26 @@ main {
 }
 
 .section {
-    margin-bottom: 24px;
+    margin-bottom: 26px;
 }
 
 input, select, button {
     width: 100%;
-    padding: 12px;
-    margin-top: 8px;
+    padding: 14px;
+    margin-top: 10px;
     font-size: 16px;
-    border-radius: 8px;
+    border-radius: 12px;
     border: none;
+}
+
+select {
+    background: #102a3a;
+    color: #fff;
+}
+
+input {
+    background: #102a3a;
+    color: #fff;
 }
 
 button {
@@ -50,19 +87,14 @@ button.danger {
     background: #c0392b;
 }
 
-.project-row,
+/* ===== REGISTRO ===== */
 .project-item {
     background: #102a3a;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 12px;
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.project-controls button {
-    margin-bottom: 10px;
+    flex-direction: column;
 }
 
 .small {
@@ -75,10 +107,27 @@ button.danger {
 <body>
 
 <header>
-    <h1 id="currentProjectName">Nessun progetto selezionato</h1>
+    <div class="stats">
+        <div class="stat-box">
+            <h3>⏳ Tempo rimanente</h3>
+            <p id="timeRemaining">0h 0m</p>
+        </div>
+        <div class="stat-box">
+            <h3>✅ Lavoro svolto</h3>
+            <p id="workDone">0h 0m</p>
+        </div>
+    </div>
 </header>
 
 <main>
+
+<!-- SELEZIONE PROGETTO -->
+<div class="section">
+    <select id="projectSelect" onchange="selectProjectFromDropdown()">
+        <option value="">Seleziona progetto</option>
+    </select>
+    <button class="danger" onclick="deleteCurrentProject()">🗑 Cancella progetto</button>
+</div>
 
 <!-- NUOVO PROGETTO -->
 <div class="section">
@@ -88,35 +137,20 @@ button.danger {
     <button onclick="createProject()">Crea progetto</button>
 </div>
 
-<!-- LISTA PROGETTI -->
-<div class="section">
-    <h2>Progetti</h2>
-    <div id="projectList"></div>
-</div>
-
 <!-- AGGIUNGI LAVORO -->
 <div class="section">
     <h2>Aggiungi lavoro</h2>
     <input id="workHoursInput" type="number" placeholder="Ore">
     <input id="workMinutesInput" type="number" placeholder="Minuti">
-    <button onclick="addWork()">Aggiungi lavoro</button>
-</div>
-
-<!-- STATO -->
-<div class="section">
-    <p>⏳ Tempo rimanente: <strong id="timeRemaining">0h 0m</strong></p>
-    <p>✅ Lavoro svolto: <strong id="workDone">0h 0m</strong></p>
-</div>
-
-<!-- CONTROLLI -->
-<div class="project-controls">
-    <button onclick="toggleWorkLog()">📊 Registro di Lavoro</button>
+    <button onclick="addWork()">Aggiungi</button>
 </div>
 
 <!-- REGISTRO -->
-<div class="section" id="workLog" style="display:none;">
-    <h2>Registro Lavoro</h2>
-    <div id="workLogItems"></div>
+<div class="section">
+    <button onclick="toggleWorkLog()">📊 Registro di lavoro</button>
+    <div id="workLog" style="display:none; margin-top:12px;">
+        <div id="workLogItems"></div>
+    </div>
 </div>
 
 </main>
@@ -133,7 +167,7 @@ function saveProjects() {
 function loadProjects() {
     const data = localStorage.getItem('projects');
     if (data) projects = JSON.parse(data);
-    renderProjects();
+    renderProjectDropdown();
 }
 
 /* ===== PROGETTI ===== */
@@ -146,52 +180,53 @@ function createProject() {
         return;
     }
 
-    const newProject = {
+    projects.push({
         name,
         timeRemaining: hours * 60,
         workDone: 0,
         workLog: {}
-    };
+    });
 
-    projects.push(newProject);
     saveProjects();
-    renderProjects();
+    renderProjectDropdown();
 
     projectName.value = '';
     totalHours.value = '';
 }
 
-function renderProjects() {
-    const list = document.getElementById('projectList');
-    list.innerHTML = '';
+function renderProjectDropdown() {
+    const select = document.getElementById('projectSelect');
+    select.innerHTML = '<option value="">Seleziona progetto</option>';
 
     projects.forEach((p, i) => {
-        const div = document.createElement('div');
-        div.className = 'project-row';
-        div.innerHTML = `
-            <span onclick="selectProject(${i})">${p.name}</span>
-            <button class="danger" onclick="deleteProject(${i})">✕</button>
-        `;
-        list.appendChild(div);
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = p.name;
+        select.appendChild(opt);
     });
 }
 
-function selectProject(i) {
-    currentProjectIndex = i;
-    document.getElementById('currentProjectName').textContent = projects[i].name;
+function selectProjectFromDropdown() {
+    const i = projectSelect.value;
+    if (i === '') {
+        currentProjectIndex = null;
+        updateDisplay();
+        document.getElementById('workLogItems').innerHTML = '';
+        return;
+    }
+    currentProjectIndex = parseInt(i);
     updateDisplay();
     renderWorkLog();
 }
 
-function deleteProject(i) {
+function deleteCurrentProject() {
+    if (currentProjectIndex === null) return;
     if (!confirm('Cancellare il progetto?')) return;
 
-    projects.splice(i, 1);
+    projects.splice(currentProjectIndex, 1);
     currentProjectIndex = null;
     saveProjects();
-    renderProjects();
-
-    document.getElementById('currentProjectName').textContent = 'Nessun progetto selezionato';
+    renderProjectDropdown();
     updateDisplay();
     document.getElementById('workLogItems').innerHTML = '';
 }
@@ -205,29 +240,20 @@ function addWork() {
 
     const h = parseInt(workHoursInput.value) || 0;
     const m = parseInt(workMinutesInput.value) || 0;
-    const totalMinutes = h * 60 + m;
+    const total = h * 60 + m;
+    if (total <= 0) return;
 
-    if (totalMinutes <= 0) return;
+    const p = projects[currentProjectIndex];
 
-    const currentProject = projects[currentProjectIndex];
-
-    currentProject.workDone += totalMinutes;
-    currentProject.timeRemaining = Math.max(
-        0,
-        currentProject.timeRemaining - totalMinutes
-    );
+    p.workDone += total;
+    p.timeRemaining = Math.max(0, p.timeRemaining - total);
 
     const today = new Date().toISOString().slice(0, 10);
-
-    if (!currentProject.workLog[today]) {
-        currentProject.workLog[today] = {
-            entries: [],
-            total: 0
-        };
+    if (!p.workLog[today]) {
+        p.workLog[today] = { entries: [], total: 0 };
     }
-
-    currentProject.workLog[today].entries.push(totalMinutes);
-    currentProject.workLog[today].total += totalMinutes;
+    p.workLog[today].entries.push(total);
+    p.workLog[today].total += total;
 
     saveProjects();
     updateDisplay();
@@ -260,33 +286,25 @@ function renderWorkLog() {
     const container = document.getElementById('workLogItems');
     container.innerHTML = '';
 
-    if (currentProjectIndex === null) {
-        container.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
-        return;
-    }
+    if (currentProjectIndex === null) return;
 
     const log = projects[currentProjectIndex].workLog;
     const days = Object.keys(log).sort().reverse();
 
-    if (days.length === 0) {
+    if (!days.length) {
         container.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
         return;
     }
 
     days.forEach(day => {
-        const data = log[day];
-
+        const d = log[day];
         const div = document.createElement('div');
         div.className = 'project-item';
-        div.style.flexDirection = 'column';
-        div.style.alignItems = 'flex-start';
 
         div.innerHTML = `
             <strong>${new Date(day).toLocaleDateString('it-IT')}</strong>
-            <span class="small">
-                Lavori: ${data.entries.map(formatMinutes).join(', ')}
-            </span>
-            <strong>Totale: ${formatMinutes(data.total)}</strong>
+            <span class="small">Lavori: ${d.entries.map(formatMinutes).join(', ')}</span>
+            <strong>Totale: ${formatMinutes(d.total)}</strong>
         `;
 
         container.appendChild(div);
