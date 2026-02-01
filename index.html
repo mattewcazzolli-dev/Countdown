@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Work Tracker</title>
 
+<link rel="manifest" href="manifest.json">
+
 <style>
 body {
     margin: 0;
@@ -13,15 +15,16 @@ body {
     color: #fff;
 }
 
-/* ===== HEADER ===== */
+/* ===== HEADER STATS ===== */
 header {
     padding: 20px;
     background: linear-gradient(180deg, #08151f, #0b1d2a);
+    text-align: center;
 }
 
 .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: 10px;
 }
 
@@ -41,36 +44,6 @@ header {
     margin: 6px 0 0;
     font-size: 22px;
     font-weight: bold;
-}
-
-.stat-box input {
-    margin-top: 6px;
-    width: 80px;
-    background: #0b1d2a;
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    padding: 6px;
-}
-
-/* ===== PROGRESS BAR ===== */
-.progress-container {
-    margin-top: 16px;
-}
-
-.progress-bg {
-    width: 100%;
-    height: 12px;
-    background: #1a3446;
-    border-radius: 8px;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    width: 0%;
-    border-radius: 8px;
-    transition: width 0.4s ease, background 0.4s ease;
 }
 
 /* ===== MAIN ===== */
@@ -93,7 +66,12 @@ input, select, button {
     border: none;
 }
 
-select, input {
+select {
+    background: #102a3a;
+    color: #fff;
+}
+
+input {
     background: #102a3a;
     color: #fff;
 }
@@ -112,11 +90,31 @@ button.danger {
     background: #c0392b;
 }
 
+/* ===== REGISTRO ===== */
 .project-item {
     background: #102a3a;
     padding: 14px;
     border-radius: 12px;
     margin-bottom: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.small {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+.inline {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.inline input {
+    flex: 1;
+}
+.inline button {
+    flex: 0 0 auto;
 }
 </style>
 </head>
@@ -135,30 +133,25 @@ button.danger {
         </div>
         <div class="stat-box">
             <h3>📅 Giorni rimanenti</h3>
-            <input type="number" id="daysRemainingInput" min="0" onchange="updateDaysRemaining()">
+            <input type="number" id="daysRemainingInput" value="0" min="0" onchange="updateDaysRemaining()" style="width:80px;">
         </div>
         <div class="stat-box">
             <h3>🕒 Ore da fare oggi</h3>
             <p id="hoursPerDay">0h</p>
         </div>
     </div>
-
-    <!-- BARRA PROGRESSO -->
-    <div class="progress-container">
-        <div class="progress-bg">
-            <div class="progress-fill" id="progressFill"></div>
-        </div>
-    </div>
 </header>
 
 <main>
 
+<!-- SELEZIONE PROGETTO -->
 <div class="section">
     <select id="projectSelect" onchange="selectProjectFromDropdown()">
         <option value="">Seleziona progetto</option>
     </select>
 </div>
 
+<!-- AGGIUNGI LAVORO -->
 <div class="section">
     <h2>Aggiungi lavoro</h2>
     <input id="workHoursInput" type="number" placeholder="Ore">
@@ -166,13 +159,37 @@ button.danger {
     <button onclick="addWork()">Aggiungi</button>
 </div>
 
+<!-- REGISTRO -->
+<div class="section">
+    <button class="secondary" onclick="toggleWorkLog()">📊 Registro di lavoro</button>
+    <div id="workLog" style="display:none; margin-top:12px;">
+        <div id="workLogItems"></div>
+    </div>
+</div>
+
+<!-- NUOVO/GESTIONE PROGETTO (COLLAPSIBILE, IN FONDO) -->
 <div class="section">
     <button class="secondary" onclick="toggleNewProject()">⚙️ Gestione progetto</button>
     <div id="newProjectSection" style="display:none; margin-top:12px;">
+
+        <!-- CREA NUOVO PROGETTO -->
+        <h3>Crea nuovo progetto</h3>
         <input id="projectName" placeholder="Nome progetto">
         <input id="totalHours" type="number" placeholder="Ore totali">
-        <button onclick="createProject()">Crea progetto</button>
+        <button onclick="createProject()">Crea nuovo progetto</button>
+
+        <hr style="margin:20px 0; border-color:#1e3a50;">
+
+        <!-- CANCELLA PROGETTO -->
+        <h3>Elimina progetto selezionato</h3>
         <button class="danger" onclick="deleteCurrentProject()">Elimina progetto</button>
+
+        <hr style="margin:20px 0; border-color:#1e3a50;">
+
+        <!-- MODIFICA GIORNATE -->
+        <h3>Modifica giornate registrate</h3>
+        <div id="editDaysContainer"></div>
+
     </div>
 </div>
 
@@ -198,45 +215,75 @@ function createProject() {
     const name = projectName.value.trim();
     const hours = parseInt(totalHours.value);
 
-    if (!name || hours <= 0) return;
+    if (!name || hours <= 0) {
+        alert('Dati non validi');
+        return;
+    }
 
     projects.push({
         name,
-        totalMinutes: hours * 60,
         timeRemaining: hours * 60,
         workDone: 0,
+        workLog: {},
         daysRemaining: 0
     });
 
     saveProjects();
     renderProjectDropdown();
+
     projectName.value = '';
     totalHours.value = '';
+    toggleNewProject();
 }
 
 function renderProjectDropdown() {
-    projectSelect.innerHTML = '<option value="">Seleziona progetto</option>';
+    const select = document.getElementById('projectSelect');
+    select.innerHTML = '<option value="">Seleziona progetto</option>';
+
     projects.forEach((p, i) => {
         const opt = document.createElement('option');
         opt.value = i;
         opt.textContent = p.name;
-        projectSelect.appendChild(opt);
+        select.appendChild(opt);
     });
 }
 
 function selectProjectFromDropdown() {
-    if (projectSelect.value === '') {
+    const i = projectSelect.value;
+    if (i === '') {
         currentProjectIndex = null;
-        resetDisplay();
+        updateDisplay();
+        renderWorkLog();
+        renderEditDays();
         return;
     }
-    currentProjectIndex = parseInt(projectSelect.value);
+    currentProjectIndex = parseInt(i);
     updateDisplay();
+    renderWorkLog();
+    renderEditDays();
+    updateHoursPerDay();
+}
+
+/* ===== CANCELLA ===== */
+function deleteCurrentProject() {
+    if (currentProjectIndex === null) return;
+    if (!confirm('Cancellare il progetto?')) return;
+
+    projects.splice(currentProjectIndex, 1);
+    currentProjectIndex = null;
+    saveProjects();
+    renderProjectDropdown();
+    updateDisplay();
+    renderWorkLog();
+    renderEditDays();
 }
 
 /* ===== LAVORO ===== */
 function addWork() {
-    if (currentProjectIndex === null) return;
+    if (currentProjectIndex === null) {
+        alert('Seleziona un progetto');
+        return;
+    }
 
     const h = parseInt(workHoursInput.value) || 0;
     const m = parseInt(workMinutesInput.value) || 0;
@@ -244,11 +291,22 @@ function addWork() {
     if (total <= 0) return;
 
     const p = projects[currentProjectIndex];
+
     p.workDone += total;
     p.timeRemaining = Math.max(0, p.timeRemaining - total);
 
+    const today = new Date().toISOString().slice(0, 10);
+    if (!p.workLog[today]) {
+        p.workLog[today] = { entries: [], total: 0 };
+    }
+    p.workLog[today].entries.push(total);
+    p.workLog[today].total += total;
+
     saveProjects();
     updateDisplay();
+    renderWorkLog();
+    renderEditDays();
+    updateHoursPerDay();
 
     workHoursInput.value = '';
     workMinutesInput.value = '';
@@ -256,66 +314,139 @@ function addWork() {
 
 /* ===== DISPLAY ===== */
 function updateDisplay() {
-    const p = projects[currentProjectIndex];
+    if (currentProjectIndex === null) {
+        timeRemaining.textContent = '0h 0m';
+        workDone.textContent = '0h 0m';
+        hoursPerDay.textContent = '0h';
+        daysRemainingInput.value = 0;
+        return;
+    }
 
+    const p = projects[currentProjectIndex];
     timeRemaining.textContent = formatMinutes(p.timeRemaining);
     workDone.textContent = formatMinutes(p.workDone);
     daysRemainingInput.value = p.daysRemaining;
-
     updateHoursPerDay();
-    updateProgressBar();
 }
 
-function resetDisplay() {
-    timeRemaining.textContent = '0h 0m';
-    workDone.textContent = '0h 0m';
-    hoursPerDay.textContent = '0h';
-    daysRemainingInput.value = 0;
-    progressFill.style.width = '0%';
-}
-
-/* ===== ORE AL GIORNO ===== */
+/* ===== GIORNI RIMANENTI ===== */
 function updateDaysRemaining() {
     if (currentProjectIndex === null) return;
-    projects[currentProjectIndex].daysRemaining = parseInt(daysRemainingInput.value) || 0;
+    const p = projects[currentProjectIndex];
+    p.daysRemaining = parseInt(daysRemainingInput.value) || 0;
     saveProjects();
     updateHoursPerDay();
 }
 
+/* ===== ORE DA FARE ===== */
 function updateHoursPerDay() {
+    if (currentProjectIndex === null) {
+        hoursPerDay.textContent = '0h';
+        return;
+    }
     const p = projects[currentProjectIndex];
-    if (p.timeRemaining <= 0) {
+    if (p.daysRemaining <= 0 || p.timeRemaining <= 0) {
         hoursPerDay.textContent = 'Completato';
         return;
     }
-    if (p.daysRemaining <= 0) {
-        hoursPerDay.textContent = '—';
+    const hoursPerDayCalc = p.timeRemaining / p.daysRemaining;
+    hoursPerDay.textContent = `${Math.ceil(hoursPerDayCalc/60)}h`;
+}
+
+/* ===== REGISTRO ===== */
+function toggleWorkLog() {
+    const el = document.getElementById('workLog');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function renderWorkLog() {
+    const container = document.getElementById('workLogItems');
+    container.innerHTML = '';
+
+    if (currentProjectIndex === null) return;
+
+    const log = projects[currentProjectIndex].workLog;
+    const days = Object.keys(log).sort().reverse();
+
+    if (!days.length) {
+        container.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
         return;
     }
-    const h = Math.ceil((p.timeRemaining / 60) / p.daysRemaining);
-    hoursPerDay.textContent = `${h}h`;
+
+    days.forEach(day => {
+        const d = log[day];
+        const div = document.createElement('div');
+        div.className = 'project-item';
+
+        div.innerHTML = `
+            <strong>${new Date(day).toLocaleDateString('it-IT')}</strong>
+            <span class="small">Lavori: ${d.entries.map(formatMinutes).join(', ')}</span>
+            <strong>Totale: ${formatMinutes(d.total)}</strong>
+        `;
+
+        container.appendChild(div);
+    });
 }
 
-/* ===== PROGRESS BAR ===== */
-function updateProgressBar() {
-    const p = projects[currentProjectIndex];
-    const percent = Math.min(100, (p.workDone / p.totalMinutes) * 100);
+/* ===== MODIFICA GIORNATE ===== */
+function renderEditDays() {
+    const container = document.getElementById('editDaysContainer');
+    container.innerHTML = '';
 
-    progressFill.style.width = percent + '%';
+    if (currentProjectIndex === null) return;
 
-    if (percent < 33) {
-        progressFill.style.background = 'linear-gradient(90deg, #ff4d4d, #ff6b6b)';
-    } else if (percent < 66) {
-        progressFill.style.background = 'linear-gradient(90deg, #f1c40f, #f39c12)';
-    } else {
-        progressFill.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)';
+    const log = projects[currentProjectIndex].workLog;
+    const days = Object.keys(log).sort().reverse();
+
+    if (!days.length) {
+        container.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
+        return;
     }
+
+    days.forEach(day => {
+        const d = log[day];
+        const div = document.createElement('div');
+        div.className = 'project-item';
+
+        const inputDate = document.createElement('input');
+        inputDate.type = 'date';
+        inputDate.value = day;
+
+        const inputTotal = document.createElement('input');
+        inputTotal.type = 'number';
+        inputTotal.value = d.total;
+        inputTotal.placeholder = 'Minuti totali';
+
+        const btnUpdate = document.createElement('button');
+        btnUpdate.textContent = 'Aggiorna';
+        btnUpdate.onclick = () => {
+            const newDate = inputDate.value;
+            const newTotal = parseInt(inputTotal.value) || 0;
+
+            const p = projects[currentProjectIndex];
+            p.workDone = p.workDone - d.total + newTotal;
+            p.timeRemaining += d.total - newTotal;
+
+            delete p.workLog[day];
+            p.workLog[newDate] = { entries: [newTotal], total: newTotal };
+
+            saveProjects();
+            updateDisplay();
+            renderWorkLog();
+            renderEditDays();
+        };
+
+        div.appendChild(inputDate);
+        div.appendChild(inputTotal);
+        div.appendChild(btnUpdate);
+        container.appendChild(div);
+    });
 }
 
-/* ===== UI ===== */
+/* ===== COLLAPSE ===== */
 function toggleNewProject() {
-    newProjectSection.style.display =
-        newProjectSection.style.display === 'none' ? 'block' : 'none';
+    const el = document.getElementById('newProjectSection');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 /* ===== UTILS ===== */
@@ -325,7 +456,23 @@ function formatMinutes(min) {
 
 /* ===== START ===== */
 loadProjects();
-</script>
 
+/* ===== DECREMENTO GIORNI AUTOMATICO ===== */
+setInterval(() => {
+    if (currentProjectIndex !== null) {
+        const p = projects[currentProjectIndex];
+        const today = new Date().toDateString();
+        if (!p.lastDayCheck) p.lastDayCheck = today;
+
+        if (p.lastDayCheck !== today && p.daysRemaining > 0) {
+            p.daysRemaining = Math.max(0, p.daysRemaining - 1);
+            p.lastDayCheck = today;
+            saveProjects();
+            updateDisplay();
+        }
+    }
+}, 60000);
+
+</script>
 </body>
 </html>
