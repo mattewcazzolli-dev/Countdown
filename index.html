@@ -83,6 +83,10 @@ button {
     font-weight: bold;
 }
 
+button.secondary {
+    background: #102a3a;
+}
+
 button.danger {
     background: #c0392b;
 }
@@ -129,14 +133,6 @@ button.danger {
     <button class="danger" onclick="deleteCurrentProject()">🗑 Cancella progetto</button>
 </div>
 
-<!-- NUOVO PROGETTO -->
-<div class="section">
-    <h2>Nuovo progetto</h2>
-    <input id="projectName" placeholder="Nome progetto">
-    <input id="totalHours" type="number" placeholder="Ore totali">
-    <button onclick="createProject()">Crea progetto</button>
-</div>
-
 <!-- AGGIUNGI LAVORO -->
 <div class="section">
     <h2>Aggiungi lavoro</h2>
@@ -147,9 +143,19 @@ button.danger {
 
 <!-- REGISTRO -->
 <div class="section">
-    <button onclick="toggleWorkLog()">📊 Registro di lavoro</button>
+    <button class="secondary" onclick="toggleWorkLog()">📊 Registro di lavoro</button>
     <div id="workLog" style="display:none; margin-top:12px;">
         <div id="workLogItems"></div>
+    </div>
+</div>
+
+<!-- NUOVO PROGETTO (COLLAPSIBILE, IN FONDO) -->
+<div class="section">
+    <button class="secondary" onclick="toggleNewProject()">➕ Gestione progetto</button>
+    <div id="newProjectSection" style="display:none; margin-top:12px;">
+        <input id="projectName" placeholder="Nome progetto">
+        <input id="totalHours" type="number" placeholder="Ore totali">
+        <button onclick="createProject()">Crea nuovo progetto</button>
     </div>
 </div>
 
@@ -192,6 +198,7 @@ function createProject() {
 
     projectName.value = '';
     totalHours.value = '';
+    toggleNewProject();
 }
 
 function renderProjectDropdown() {
@@ -309,6 +316,12 @@ function renderWorkLog() {
 
         container.appendChild(div);
     });
+}
+
+/* ===== COLLAPSE ===== */
+function toggleNewProject() {
+    const el = document.getElementById('newProjectSection');
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 /* ===== UTILS ===== */
