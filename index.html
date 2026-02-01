@@ -1,226 +1,228 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Tracker</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Work Tracker</title>
 
-    <link rel="manifest" href="manifest.json">
+<link rel="manifest" href="manifest.json">
 
-    <style>
-        body {
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background: #0b1d2a;
-            color: #fff;
-        }
+<style>
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0b1d2a;
+    color: #fff;
+}
 
-        header {
-            padding: 20px;
-            text-align: center;
-            background: #08151f;
-        }
+header {
+    padding: 16px;
+    text-align: center;
+    background: #08151f;
+}
 
-        main {
-            padding: 20px;
-            max-width: 800px;
-            margin: auto;
-        }
+main {
+    padding: 16px;
+    max-width: 600px;
+    margin: auto;
+}
 
-        .section {
-            margin-bottom: 25px;
-        }
+.section {
+    margin-bottom: 24px;
+}
 
-        input, select, button {
-            padding: 8px;
-            margin: 5px 0;
-            width: 100%;
-            box-sizing: border-box;
-        }
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    font-size: 16px;
+    border-radius: 8px;
+    border: none;
+}
 
-        button {
-            cursor: pointer;
-            background: #1e90ff;
-            border: none;
-            color: #fff;
-            font-weight: bold;
-        }
+button {
+    background: #1e90ff;
+    color: #fff;
+    font-weight: bold;
+}
 
-        .project-item {
-            background: #102a3a;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
+button.danger {
+    background: #c0392b;
+}
 
-        .project-controls button {
-            margin-bottom: 10px;
-        }
-    </style>
+.project-row {
+    background: #102a3a;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.small {
+    font-size: 14px;
+    opacity: 0.8;
+}
+</style>
 </head>
 
 <body>
 
 <header>
-    <h1 id="currentProjectName">Seleziona un Progetto</h1>
+    <h1 id="currentProjectName">Nessun progetto selezionato</h1>
 </header>
 
 <main>
 
-    <!-- CREAZIONE PROGETTO -->
-    <div class="section">
-        <h2>Nuovo Progetto</h2>
-        <input id="projectName" placeholder="Nome progetto">
-        <input id="totalHours" type="number" placeholder="Ore totali">
-        <input id="startHours" type="number" placeholder="Ore di lavoro al giorno">
-        <button onclick="createProject()">Crea Progetto</button>
-    </div>
+<!-- NUOVO PROGETTO -->
+<div class="section">
+    <h2>Nuovo progetto</h2>
+    <input id="projectName" placeholder="Nome progetto">
+    <input id="totalHours" type="number" placeholder="Ore totali">
+    <button onclick="createProject()">Crea progetto</button>
+</div>
 
-    <!-- SELEZIONE PROGETTO -->
-    <div class="section">
-        <h2>Progetti</h2>
-        <select id="projectSelect" onchange="loadProject()"></select>
-    </div>
+<!-- LISTA PROGETTI -->
+<div class="section">
+    <h2>Progetti</h2>
+    <div id="projectList"></div>
+</div>
 
-    <!-- AGGIUNGI LAVORO -->
-    <div class="section">
-        <h2>Aggiungi Lavoro</h2>
-        <input id="workHoursInput" type="number" placeholder="Ore">
-        <input id="workMinutesInput" type="number" placeholder="Minuti">
-        <button onclick="addWork()">Aggiungi</button>
-    </div>
+<!-- AGGIUNGI LAVORO -->
+<div class="section">
+    <h2>Aggiungi lavoro</h2>
+    <input id="workHours" type="number" placeholder="Ore">
+    <input id="workMinutes" type="number" placeholder="Minuti">
+    <button onclick="addWork()">Aggiungi lavoro</button>
+</div>
 
-    <!-- INFO -->
-    <div class="section">
-        <p>Tempo rimanente: <span id="timeRemaining">0h 0m</span></p>
-        <p>Lavoro svolto: <span id="workDone">0h 0m</span></p>
-    </div>
+<!-- STATO -->
+<div class="section">
+    <p>⏳ Tempo rimanente: <strong id="timeRemaining">0h 0m</strong></p>
+    <p>✅ Lavoro svolto: <strong id="workDone">0h 0m</strong></p>
+</div>
 
-    <!-- REGISTRO -->
-    <div class="project-controls">
-        <button onclick="toggleWorkLog()">📊 Registro Lavoro</button>
-    </div>
-
-    <div class="section" id="workLog" style="display:none;">
-        <div id="workLogItems"></div>
-    </div>
+<!-- REGISTRO -->
+<div class="section">
+    <button onclick="toggleWorkLog()">📊 Registro lavoro</button>
+    <div id="workLog" style="display:none; margin-top:10px;"></div>
+</div>
 
 </main>
 
 <script>
 let projects = [];
-let currentProject = null;
+let currentProjectIndex = null;
 
 /* ===== STORAGE ===== */
-function saveProjects() {
+function save() {
     localStorage.setItem('projects', JSON.stringify(projects));
 }
 
-function loadProjects() {
+function load() {
     const data = localStorage.getItem('projects');
     if (data) projects = JSON.parse(data);
-    updateProjectSelect();
+    renderProjects();
 }
 
 /* ===== PROGETTI ===== */
 function createProject() {
-    const name = document.getElementById('projectName').value;
-    const hours = parseInt(document.getElementById('totalHours').value);
-    const startHours = parseInt(document.getElementById('startHours').value);
+    const name = projectName.value.trim();
+    const hours = parseInt(totalHours.value);
 
     if (!name || hours <= 0) {
         alert('Dati non validi');
         return;
     }
 
-    const newProject = {
+    projects.push({
         name,
         timeRemaining: hours * 60,
         workDone: 0,
-        hoursToStart: startHours || 0,
-        lastDayCheck: new Date().toDateString(),
-        createdAt: new Date().toISOString(),
         workLog: {}
-    };
+    });
 
-    projects.push(newProject);
-    saveProjects();
-    updateProjectSelect();
+    save();
+    renderProjects();
+    projectName.value = '';
+    totalHours.value = '';
 }
 
-function updateProjectSelect() {
-    const select = document.getElementById('projectSelect');
-    select.innerHTML = '<option value="">-- seleziona --</option>';
+function renderProjects() {
+    const list = document.getElementById('projectList');
+    list.innerHTML = '';
 
     projects.forEach((p, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = p.name;
-        select.appendChild(opt);
+        const div = document.createElement('div');
+        div.className = 'project-row';
+        div.innerHTML = `
+            <span onclick="selectProject(${i})">${p.name}</span>
+            <button class="danger" onclick="deleteProject(${i})">✕</button>
+        `;
+        list.appendChild(div);
     });
 }
 
-function loadProject() {
-    const index = document.getElementById('projectSelect').value;
-
-    if (index === '') {
-        currentProject = null;
-        document.getElementById('currentProjectName').textContent = 'Seleziona un Progetto';
-        return;
-    }
-
-    currentProject = projects[index];
-    document.getElementById('currentProjectName').textContent = currentProject.name;
-
+function selectProject(i) {
+    currentProjectIndex = i;
+    document.getElementById('currentProjectName').textContent = projects[i].name;
     updateDisplay();
     renderWorkLog();
+}
+
+function deleteProject(i) {
+    if (!confirm('Cancellare il progetto?')) return;
+    projects.splice(i, 1);
+    currentProjectIndex = null;
+    save();
+    renderProjects();
+    document.getElementById('currentProjectName').textContent = 'Nessun progetto selezionato';
+    updateDisplay();
+    document.getElementById('workLog').innerHTML = '';
 }
 
 /* ===== LAVORO ===== */
 function addWork() {
-    if (!currentProject) {
+    if (currentProjectIndex === null) {
         alert('Seleziona un progetto');
         return;
     }
 
-    const h = parseInt(document.getElementById('workHoursInput').value) || 0;
-    const m = parseInt(document.getElementById('workMinutesInput').value) || 0;
+    const h = parseInt(workHours.value) || 0;
+    const m = parseInt(workMinutes.value) || 0;
     const total = h * 60 + m;
 
     if (total <= 0) return;
 
-    currentProject.workDone += total;
-    currentProject.timeRemaining = Math.max(0, currentProject.timeRemaining - total);
+    const p = projects[currentProjectIndex];
 
-    const today = new Date().toISOString().slice(0, 10);
+    p.workDone += total;
+    p.timeRemaining = Math.max(0, p.timeRemaining - total);
 
-    if (!currentProject.workLog[today]) {
-        currentProject.workLog[today] = { entries: [], total: 0 };
-    }
+    const today = new Date().toISOString().slice(0,10);
+    if (!p.workLog[today]) p.workLog[today] = [];
+    p.workLog[today].push(total);
 
-    currentProject.workLog[today].entries.push(total);
-    currentProject.workLog[today].total += total;
-
-    saveProjects();
+    save();
     updateDisplay();
     renderWorkLog();
 
-    document.getElementById('workHoursInput').value = '';
-    document.getElementById('workMinutesInput').value = '';
+    workHours.value = '';
+    workMinutes.value = '';
 }
 
 /* ===== DISPLAY ===== */
 function updateDisplay() {
-    if (!currentProject) return;
+    if (currentProjectIndex === null) {
+        timeRemaining.textContent = '0h 0m';
+        workDone.textContent = '0h 0m';
+        return;
+    }
 
-    document.getElementById('timeRemaining').textContent =
-        formatMinutes(currentProject.timeRemaining);
-
-    document.getElementById('workDone').textContent =
-        formatMinutes(currentProject.workDone);
+    const p = projects[currentProjectIndex];
+    timeRemaining.textContent = format(p.timeRemaining);
+    workDone.textContent = format(p.workDone);
 }
 
 /* ===== REGISTRO ===== */
@@ -230,42 +232,40 @@ function toggleWorkLog() {
 }
 
 function renderWorkLog() {
-    const container = document.getElementById('workLogItems');
-    container.innerHTML = '';
+    const el = document.getElementById('workLog');
+    el.innerHTML = '';
 
-    if (!currentProject || !Object.keys(currentProject.workLog).length) {
-        container.innerHTML = '<p>Nessun lavoro registrato</p>';
+    if (currentProjectIndex === null) return;
+
+    const log = projects[currentProjectIndex].workLog;
+    const days = Object.keys(log).sort().reverse();
+
+    if (!days.length) {
+        el.innerHTML = '<p class="small">Nessun lavoro registrato</p>';
         return;
     }
 
-    Object.keys(currentProject.workLog).sort().reverse().forEach(day => {
-        const d = currentProject.workLog[day];
+    days.forEach(d => {
+        const total = log[d].reduce((a,b)=>a+b,0);
         const div = document.createElement('div');
-        div.className = 'project-item';
+        div.className = 'project-row';
         div.style.flexDirection = 'column';
-        div.style.alignItems = 'flex-start';
-
         div.innerHTML = `
-            <strong>${formatDate(day)}</strong>
-            <span>Lavori: ${d.entries.map(formatMinutes).join(', ')}</span>
-            <strong>Totale: ${formatMinutes(d.total)}</strong>
+            <strong>${new Date(d).toLocaleDateString('it-IT')}</strong>
+            <span class="small">Lavori: ${log[d].map(format).join(', ')}</span>
+            <strong>Totale: ${format(total)}</strong>
         `;
-
-        container.appendChild(div);
+        el.appendChild(div);
     });
 }
 
 /* ===== UTILS ===== */
-function formatMinutes(min) {
-    return `${Math.floor(min / 60)}h ${min % 60}m`;
-}
-
-function formatDate(d) {
-    return new Date(d).toLocaleDateString('it-IT');
+function format(min) {
+    return `${Math.floor(min/60)}h ${min%60}m`;
 }
 
 /* ===== START ===== */
-loadProjects();
+load();
 </script>
 
 </body>
